@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import EmailCard from './EmailCard'
+import ChatBot from './ChatBot'
 import { EmailMessage } from '@/lib/gmail'
 
 export default function EmailList() {
@@ -170,6 +171,9 @@ export default function EmailList() {
           ))}
         </div>
       )}
+
+      {/* ChatBot flottant */}
+      <ChatBot emails={emails} />
     </div>
   )
 } 
