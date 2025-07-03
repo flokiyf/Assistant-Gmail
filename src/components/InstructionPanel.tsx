@@ -12,11 +12,6 @@ interface InstructionTemplate {
   color: string
 }
 
-interface InstructionPanelProps {
-  onSendInstruction?: (instruction: string) => void
-  isLoading?: boolean
-}
-
 interface AnalysisResult {
   summary: string
   stats: {
