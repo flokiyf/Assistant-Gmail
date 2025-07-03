@@ -76,7 +76,7 @@ export default function Home() {
                   </svg>
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Gain de Temps</h3>
-                <p className="text-gray-600">Automatisez votre gestion d'emails et concentrez-vous sur l'essentiel.</p>
+                <p className="text-gray-600">Automatisez votre gestion d&apos;emails et concentrez-vous sur l&apos;essentiel.</p>
               </div>
             </div>
           </div>

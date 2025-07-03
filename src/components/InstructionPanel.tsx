@@ -109,7 +109,7 @@ const categoryLabels = {
   search: { label: 'Recherche', color: 'bg-orange-100 text-orange-800 border-orange-200' }
 }
 
-export default function InstructionPanel({ onSendInstruction, isLoading = false }: InstructionPanelProps) {
+export default function InstructionPanel() {
   const [customInstruction, setCustomInstruction] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [showTemplates, setShowTemplates] = useState(true)
@@ -335,7 +335,7 @@ export default function InstructionPanel({ onSendInstruction, isLoading = false 
                       <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      <h4 className="font-bold text-gray-900">Résultat de l'Analyse</h4>
+                      <h4 className="font-bold text-gray-900">Résultat de l&apos;Analyse</h4>
                     </div>
                     <div 
                       className="prose prose-sm max-w-none text-gray-800 leading-relaxed break-words overflow-hidden"
@@ -359,7 +359,7 @@ export default function InstructionPanel({ onSendInstruction, isLoading = false 
 
       {/* Toggle templates */}
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xl font-bold text-gray-900">Templates d'Instructions</h3>
+        <h3 className="text-xl font-bold text-gray-900">Templates d&apos;Instructions</h3>
         <button
           onClick={() => setShowTemplates(!showTemplates)}
           className="text-blue-600 hover:text-blue-700 font-medium transition-colors duration-200"
@@ -437,7 +437,7 @@ export default function InstructionPanel({ onSendInstruction, isLoading = false 
             </svg>
           </div>
           <div>
-            <h4 className="font-semibold text-blue-900 mb-2">💡 Conseils d'utilisation</h4>
+            <h4 className="font-semibold text-blue-900 mb-2">💡 Conseils d&apos;utilisation</h4>
             <ul className="text-sm text-blue-800 space-y-2 leading-relaxed">
               <li>• <strong>Soyez spécifique</strong> dans vos instructions (période, expéditeur, type d&apos;email)</li>
               <li>• <strong>Utilisez les templates</strong> comme base et personnalisez-les selon vos besoins</li>

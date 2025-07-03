@@ -277,7 +277,7 @@ export default function ChatBot({ emails }: ChatBotProps) {
                       <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
                       <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                     </div>
-                    <span className="text-sm text-gray-600">L'assistant réfléchit...</span>
+                    <span className="text-sm text-gray-600">L&apos;assistant réfléchit...</span>
                   </div>
                 </div>
               </div>
