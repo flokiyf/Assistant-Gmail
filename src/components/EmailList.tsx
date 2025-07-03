@@ -10,6 +10,7 @@ export default function EmailList() {
   const { data: session } = useSession()
   const [emails, setEmails] = useState<EmailMessage[]>([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [maxResults, setMaxResults] = useState(10)
 
@@ -17,6 +18,7 @@ export default function EmailList() {
     if (!session) return
 
     setLoading(true)
+    setError(null)
     try {
       const params = new URLSearchParams({
         maxResults: maxResults.toString(),
@@ -29,9 +31,13 @@ export default function EmailList() {
       if (response.ok) {
         setEmails(data.messages)
       } else {
-        console.error('Erreur:', data.error)
+        const errorMsg = `Erreur ${response.status}: ${data.error}${data.details ? ` - ${data.details}` : ''}`
+        setError(errorMsg)
+        console.error('Erreur API:', data)
       }
     } catch (error) {
+      const errorMsg = `Erreur de connexion: ${error instanceof Error ? error.message : 'Erreur inconnue'}`
+      setError(errorMsg)
       console.error('Erreur lors du chargement des emails:', error)
     } finally {
       setLoading(false)
@@ -147,7 +153,41 @@ export default function EmailList() {
         </div>
       )}
 
-      {!loading && emails.length === 0 && (
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">
+                Erreur de chargement des emails
+              </h3>
+              <div className="mt-2 text-sm text-red-700">
+                <p>{error}</p>
+              </div>
+              <div className="mt-4">
+                <button
+                  onClick={() => fetchEmails()}
+                  className="bg-red-100 px-3 py-2 rounded-md text-sm font-medium text-red-800 hover:bg-red-200"
+                >
+                  Réessayer
+                </button>
+                <button
+                  onClick={() => window.open('/api/gmail/test', '_blank')}
+                  className="ml-3 bg-blue-100 px-3 py-2 rounded-md text-sm font-medium text-blue-800 hover:bg-blue-200"
+                >
+                  Tester la connexion
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!loading && !error && emails.length === 0 && (
         <div className="text-center py-8">
           <p className="text-gray-600">
             {searchQuery ? 'Aucun email trouvé pour cette recherche.' : 'Aucun email trouvé.'}
@@ -155,7 +195,7 @@ export default function EmailList() {
         </div>
       )}
 
-      {!loading && emails.length > 0 && (
+      {!loading && !error && emails.length > 0 && (
         <div className="space-y-4">
           <p className="text-sm text-gray-600">
             {emails.length} email{emails.length > 1 ? 's' : ''} trouvé{emails.length > 1 ? 's' : ''}

@@ -13,7 +13,7 @@ interface InstructionTemplate {
 }
 
 interface InstructionPanelProps {
-  onSendInstruction: (instruction: string) => void
+  onSendInstruction?: (instruction: string) => void
   isLoading?: boolean
 }
 
@@ -281,7 +281,7 @@ export default function InstructionPanel({ onSendInstruction, isLoading = false 
               {currentInstruction && (
                 <div className="mb-4 p-3 bg-white rounded-lg border border-blue-200">
                   <p className="text-sm font-medium text-blue-800 mb-1">Instruction :</p>
-                  <p className="text-sm text-blue-700 italic">"{currentInstruction}"</p>
+                  <p className="text-sm text-blue-700 italic">&quot;{currentInstruction}&quot;</p>
                 </div>
               )}
 
@@ -420,7 +420,7 @@ export default function InstructionPanel({ onSendInstruction, isLoading = false 
                 </div>
                 <p className="text-sm text-gray-600 mb-3 leading-relaxed">{template.description}</p>
                 <div className="text-xs text-gray-500 bg-white p-3 rounded-lg border border-gray-100 italic">
-                  "{template.instruction.substring(0, 80)}..."
+                  &quot;{template.instruction.substring(0, 80)}...&quot;
                 </div>
               </div>
             ))}
@@ -439,9 +439,9 @@ export default function InstructionPanel({ onSendInstruction, isLoading = false 
           <div>
             <h4 className="font-semibold text-blue-900 mb-2">💡 Conseils d'utilisation</h4>
             <ul className="text-sm text-blue-800 space-y-2 leading-relaxed">
-              <li>• <strong>Soyez spécifique</strong> dans vos instructions (période, expéditeur, type d'email)</li>
+              <li>• <strong>Soyez spécifique</strong> dans vos instructions (période, expéditeur, type d&apos;email)</li>
               <li>• <strong>Utilisez les templates</strong> comme base et personnalisez-les selon vos besoins</li>
-              <li>• <strong>L'assistant peut traiter</strong> des demandes complexes et multi-étapes</li>
+              <li>• <strong>L&apos;assistant peut traiter</strong> des demandes complexes et multi-étapes</li>
               <li>• <strong>Les résultats incluront</strong> des résumés détaillés et actions recommandées</li>
             </ul>
           </div>

@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     const emails = await gmailClient.searchMessages(gmailQuery, maxResults)
 
     // Préparer le contexte pour l'IA avec le contenu complet
-    const emailContext = emails.slice(0, 10).map((email, index) => ({
+    const emailContext = emails.slice(0, 10).map((email) => ({
       id: email.id,
       sujet: email.subject || 'Aucun sujet',
       expediteur: email.from,

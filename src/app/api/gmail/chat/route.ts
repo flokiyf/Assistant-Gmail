@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { GmailClient } from '@/lib/gmail'
+import { GmailClient, EmailMessage } from '@/lib/gmail'
 import OpenAI from 'openai'
 
 const openai = new OpenAI({
@@ -26,14 +26,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Si les emails ne sont pas fournis, les récupérer via Gmail
-    let emailsToAnalyze = emails
+    let emailsToAnalyze: EmailMessage[] = emails
     if (!emails || emails.length === 0) {
       const gmailClient = new GmailClient(session.accessToken)
       emailsToAnalyze = await gmailClient.getMessages(15) // Récupérer 15 emails
     }
 
     // Préparer le contexte des emails pour l'IA avec le contenu complet
-    const emailContext = emailsToAnalyze?.slice(0, 15).map((email: any) => ({
+    const emailContext = emailsToAnalyze?.slice(0, 15).map((email: EmailMessage) => ({
       id: email.id,
       sujet: email.subject || 'Aucun sujet',
       expediteur: email.from,
@@ -46,8 +46,8 @@ export async function POST(request: NextRequest) {
 
     const emailStats = {
       total: emailsToAnalyze?.length || 0,
-      nonLus: emailsToAnalyze?.filter((e: any) => !e.isRead).length || 0,
-      aujourdhui: emailsToAnalyze?.filter((e: any) => {
+      nonLus: emailsToAnalyze?.filter((e: EmailMessage) => !e.isRead).length || 0,
+      aujourdhui: emailsToAnalyze?.filter((e: EmailMessage) => {
         const today = new Date().toDateString()
         return new Date(e.date).toDateString() === today
       }).length || 0
@@ -62,7 +62,7 @@ STATISTIQUES DE LA BOÎTE MAIL :
 - Emails d'aujourd'hui : ${emailStats.aujourdhui}
 
 CONTEXTE DES EMAILS (avec contenu complet) :
-${emailContext.map((email: any, index: number) => 
+${emailContext.map((email, index: number) => 
   `${index + 1}. ID: ${email.id}
    Sujet: "${email.sujet}"
    De: ${email.expediteur}

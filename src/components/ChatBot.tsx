@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { EmailMessage } from '@/lib/gmail'
 
 interface ChatMessage {
   id: string
@@ -11,7 +12,7 @@ interface ChatMessage {
 }
 
 interface ChatBotProps {
-  emails: any[]
+  emails: EmailMessage[]
 }
 
 const instructionTemplates = [
@@ -47,7 +48,7 @@ export default function ChatBot({ emails }: ChatBotProps) {
     {
       id: '1',
       role: 'assistant',
-      content: 'Bonjour ! 👋 Je suis votre assistant email professionnel.\n\nJe peux vous aider à :\n• Analyser vos emails selon vos besoins\n• Rechercher des informations spécifiques\n• Créer des résumés détaillés\n• Recommander des actions\n\nComment puis-je vous assister aujourd\'hui ?',
+      content: 'Bonjour ! 👋 Je suis votre assistant email professionnel.\n\nJe peux vous aider à :\n• Analyser vos emails selon vos besoins\n• Rechercher des informations spécifiques\n• Créer des résumés détaillés\n• Recommander des actions\n\nComment puis-je vous assister aujourd&apos;hui ?',
       timestamp: new Date()
     }
   ])
@@ -127,7 +128,7 @@ export default function ChatBot({ emails }: ChatBotProps) {
         setMessages(prev => [...prev, errorMessage])
       }
     } catch (error) {
-      console.error('Erreur lors de l\'envoi du message:', error)
+      console.error('Erreur lors de l&apos;envoi du message:', error)
       const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
