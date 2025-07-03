@@ -84,9 +84,7 @@ export default function Home() {
           /* Interface principale pour utilisateurs connectés */
           <>
             {/* Panneau d'instructions */}
-            <InstructionPanel 
-              onSendInstruction={() => {}} // Fonction vide car maintenant géré en interne
-            />
+            <InstructionPanel />
             
             {/* Liste des emails */}
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
