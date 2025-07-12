@@ -1,232 +1,142 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
+import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
-import { GmailClient, EmailMessage } from '@/lib/gmail'
+import { GmailClient } from '@/lib/gmail'
 import { analyzeInstruction, generateReplyFromInstruction } from '@/lib/openai'
 
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    
     if (!session?.accessToken) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
     }
 
-    const body = await request.json()
-    const { instruction } = body
-
+    const { instruction } = await request.json()
     if (!instruction) {
-      return NextResponse.json({ 
-        error: 'Instruction requise' 
-      }, { status: 400 })
+      return NextResponse.json({ error: 'Instruction manquante' }, { status: 400 })
     }
 
-    // Analyser l'instruction pour déterminer le type
+    // Analyser l'instruction pour déterminer si c'est une réponse
     const instructionAnalysis = await analyzeInstruction(instruction)
     
     if (!instructionAnalysis.isReplyInstruction) {
-      return NextResponse.json({ 
-        error: 'Cette instruction n\'est pas une instruction de réponse' 
-      }, { status: 400 })
+      return NextResponse.json({ error: 'Cette instruction n\'est pas une demande de réponse' }, { status: 400 })
     }
-
-    // Détecter si c'est une automation complète
-    const instructionLower = instruction.toLowerCase()
-    const isFullAutomatic = instructionLower.includes('automatiquement') || 
-                           instructionLower.includes('directement') ||
-                           instructionLower.includes('sans confirmation') ||
-                           instructionLower.includes('sans validation') ||
-                           instructionLower.includes('immédiatement')
 
     // Créer le client Gmail
     const gmailClient = new GmailClient(session.accessToken)
+
+    // Récupérer les emails récents (20 derniers jours)
+    const emails = await gmailClient.getMessages(50)
     
-    // Récupérer le profil utilisateur
+    // Filtrer les emails selon l'instruction
+    const recentEmails = emails.filter(email => {
+      const emailDate = new Date(email.date)
+      const twentyDaysAgo = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000)
+      return emailDate > twentyDaysAgo
+    })
+
+    // Obtenir le profil utilisateur
     const userProfile = await gmailClient.getUserProfile()
 
-    // Déterminer la requête Gmail basée sur l'instruction
-    let gmailQuery = 'in:inbox'
-    let maxResults = 10 // Par défaut
+    // Générer les réponses pour tous les emails
+    const replies = await generateReplyFromInstruction(recentEmails, instruction, userProfile)
 
-    // Analyser l'instruction pour optimiser la requête
-    
-    if (instructionLower.includes('non lu') || instructionLower.includes('unread')) {
-      gmailQuery += ' is:unread'
-    }
-    
-    if (instructionLower.includes('aujourd\'hui') || instructionLower.includes('today')) {
-      const today = new Date().toISOString().split('T')[0].replace(/-/g, '/')
-      gmailQuery = `in:inbox after:${today}`
-      maxResults = 20
-    } else if (instructionLower.includes('hier') || instructionLower.includes('yesterday')) {
-      const yesterday = new Date()
-      yesterday.setDate(yesterday.getDate() - 1)
-      const dateStr = yesterday.toISOString().split('T')[0].replace(/-/g, '/')
-      gmailQuery = `in:inbox after:${dateStr}`
-    } else if (instructionLower.includes('cette semaine') || instructionLower.includes('this week')) {
-      const weekAgo = new Date()
-      weekAgo.setDate(weekAgo.getDate() - 7)
-      const dateStr = weekAgo.toISOString().split('T')[0].replace(/-/g, '/')
-      gmailQuery = `in:inbox after:${dateStr}`
-    }
-
-    // Rechercher des expéditeurs spécifiques
-    const emailRegex = /[\w\.-]+@[\w\.-]+\.\w+/g
-    const emailMatches = instruction.match(emailRegex)
-    if (emailMatches && emailMatches.length > 0) {
-      const emailQuery = emailMatches.map(email => `from:${email}`).join(' OR ')
-      gmailQuery += ` (${emailQuery})`
-    }
-
-    // Rechercher des mots-clés spécifiques
-    if (instructionLower.includes('recrutement') || instructionLower.includes('job')) {
-      gmailQuery += ' (job OR emploi OR recrutement OR candidature OR CV)'
-    }
-    
-    if (instructionLower.includes('urgent') || instructionLower.includes('important')) {
-      gmailQuery += ' is:important'
-    }
-
-    if (instructionLower.includes('devis') || instructionLower.includes('quote')) {
-      gmailQuery += ' (devis OR quote OR prix OR tarif)'
-    }
-
-    if (instructionLower.includes('client') || instructionLower.includes('customer')) {
-      gmailQuery += ' (client OR customer OR commande OR order)'
-    }
-
-    // Récupérer les emails correspondants
-    const emails = await gmailClient.searchMessages(gmailQuery, maxResults)
-    
-    // Filtrer les emails qui ne sont pas des réponses automatiques ou des notifications
-    const filteredEmails = emails.filter((email: EmailMessage) => {
-      const from = email.from.toLowerCase()
-      const subject = email.subject.toLowerCase()
-      
-      // Exclure les emails automatiques
-      if (from.includes('noreply') || from.includes('no-reply') || from.includes('donotreply')) {
-        return false
-      }
-      
-      // Exclure les notifications
-      if (subject.includes('notification') || subject.includes('newsletter')) {
-        return false
-      }
-      
-      return true
-    })
-
-    if (filteredEmails.length === 0) {
-      return NextResponse.json({
-        message: 'Aucun email correspondant trouvé pour cette instruction',
-        emails: [],
-        replies: [],
-        isAutomatic: isFullAutomatic
-      })
-    }
-
-    // Générer les réponses avec l'IA
-    const generatedReplies = await generateReplyFromInstruction(
-      filteredEmails,
-      instruction,
-      userProfile
-    )
-
-    // Si automation complète, envoyer directement
-    if (isFullAutomatic) {
-      const sentReplies = []
-      const failedReplies = []
-
-      for (const reply of generatedReplies) {
-        try {
-          // Trouver l'email original
-          const originalEmail = filteredEmails.find(e => e.id === reply.emailId)
-          if (!originalEmail) continue
-
-          // Envoyer la réponse
-          await gmailClient.replyToEmail(originalEmail.id, {
-            body: reply.replyBody
-          }, userProfile.email)
-
-          sentReplies.push({
-            emailId: reply.emailId,
-            to: originalEmail.from,
-            subject: reply.replySubject,
-            body: reply.replyBody,
-            originalSubject: originalEmail.subject,
-            sentAt: new Date().toISOString()
-          })
-        } catch (error) {
-          failedReplies.push({
-            emailId: reply.emailId,
-            error: error instanceof Error ? error.message : 'Erreur inconnue'
-          })
-        }
-      }
-
-      // Sécurité : limiter à 20 emails automatiques par session
-      if (sentReplies.length > 20) {
-        return NextResponse.json({
-          error: 'Limite de sécurité dépassée : maximum 20 emails automatiques par session'
-        }, { status: 400 })
-      }
-
-      return NextResponse.json({
-        message: `🚀 ENVOI AUTOMATIQUE : ${sentReplies.length} réponses envoyées automatiquement`,
-        instruction: instruction,
-        isAutomatic: true,
-        automaticResults: {
-          sent: sentReplies,
-          failed: failedReplies,
-          total: sentReplies.length + failedReplies.length
-        },
-        stats: {
-          totalEmails: filteredEmails.length,
-          repliesSent: sentReplies.length,
-          repliesFailed: failedReplies.length,
-          successRate: sentReplies.length / (sentReplies.length + failedReplies.length) * 100
-        }
-      })
-    }
-
-    // Sinon, mode prévisualisation classique
-    const emailsWithReplies = filteredEmails.map(email => {
-      const reply = generatedReplies.find(r => r.emailId === email.id)
+    // Créer les EmailWithReply pour le retour
+    const emailsWithReplies = recentEmails.map(email => {
+      const reply = replies.find(r => r.emailId === email.id)
       return {
-        email: {
-          id: email.id,
-          from: email.from,
-          subject: email.subject,
-          date: email.date,
-          snippet: email.snippet,
-          body: email.body,
-          isRead: email.isRead
-        },
+        email,
         reply: reply || null
       }
-    })
+    }).filter(item => item.reply !== null) // Garder seulement ceux avec des réponses
 
-    return NextResponse.json({
-      message: `${generatedReplies.length} réponses générées pour ${filteredEmails.length} emails`,
-      instruction: instruction,
-      instructionAnalysis,
-      emailsWithReplies,
-      userProfile,
-      isAutomatic: false,
-      stats: {
-        totalEmails: filteredEmails.length,
-        repliesGenerated: generatedReplies.length,
-        averageConfidence: generatedReplies.length > 0 
-          ? generatedReplies.reduce((sum, reply) => sum + reply.confidence, 0) / generatedReplies.length
-          : 0
+    // Détecter si c'est un envoi automatique
+    const automaticKeywords = [
+      'automatiquement', 'directement', 'envoie', 'send', 'et envoie', 'puis envoie',
+      'sans prévisualisation', 'sans validation', 'immédiatement'
+    ]
+    
+    const isAutomatic = automaticKeywords.some(keyword => 
+      instruction.toLowerCase().includes(keyword)
+    )
+
+    if (isAutomatic) {
+      // Envoyer automatiquement les réponses
+      const sentResults = []
+      const failedResults = []
+      let sentCount = 0
+      let failedCount = 0
+
+      // Limiter à 20 emails maximum pour éviter les abus
+      const emailsToProcess = emailsWithReplies.slice(0, 20)
+
+      for (const { email, reply } of emailsToProcess) {
+        if (!reply) continue
+
+        try {
+          await gmailClient.replyToEmail(email.id, { body: reply.replyBody }, userProfile.email)
+          sentResults.push({
+            to: email.from,
+            subject: reply.replySubject,
+            emailId: email.id
+          })
+          sentCount++
+        } catch (error) {
+          console.error(`Erreur envoi réponse à ${email.id}:`, error)
+          failedResults.push({
+            emailId: email.id,
+            error: error instanceof Error ? error.message : 'Erreur inconnue'
+          })
+          failedCount++
+        }
       }
-    })
+
+      const totalEmails = emailsToProcess.length
+      const successRate = totalEmails > 0 ? sentCount / totalEmails : 0
+
+      return NextResponse.json({
+        message: `🚀 ENVOI AUTOMATIQUE : ${sentCount} réponses envoyées automatiquement`,
+        instruction,
+        instructionAnalysis,
+        emailsWithReplies,
+        userProfile,
+        isAutomatic: true,
+        automaticResults: {
+          sent: sentResults,
+          failed: failedResults,
+          total: totalEmails
+        },
+        stats: {
+          totalEmails,
+          repliesGenerated: replies.length,
+          averageConfidence: replies.length > 0 ? replies.reduce((sum, r) => sum + r.confidence, 0) / replies.length : 0,
+          repliesSent: sentCount,
+          repliesFailed: failedCount,
+          successRate
+        }
+      })
+    } else {
+      // Mode prévisualisation
+      return NextResponse.json({
+        message: `${replies.length} réponses générées pour prévisualisation`,
+        instruction,
+        instructionAnalysis,
+        emailsWithReplies,
+        userProfile,
+        isAutomatic: false,
+        stats: {
+          totalEmails: recentEmails.length,
+          repliesGenerated: replies.length,
+          averageConfidence: replies.length > 0 ? replies.reduce((sum, r) => sum + r.confidence, 0) / replies.length : 0
+        }
+      })
+    }
 
   } catch (error) {
     console.error('Erreur lors du traitement de l\'instruction de réponse:', error)
     return NextResponse.json({ 
-      error: 'Erreur lors du traitement de votre instruction',
-      details: error instanceof Error ? error.message : 'Erreur inconnue'
+      error: error instanceof Error ? error.message : 'Erreur interne du serveur' 
     }, { status: 500 })
   }
 } 
