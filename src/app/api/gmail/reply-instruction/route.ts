@@ -30,6 +30,14 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    // Détecter si c'est une automation complète
+    const instructionLower = instruction.toLowerCase()
+    const isFullAutomatic = instructionLower.includes('automatiquement') || 
+                           instructionLower.includes('directement') ||
+                           instructionLower.includes('sans confirmation') ||
+                           instructionLower.includes('sans validation') ||
+                           instructionLower.includes('immédiatement')
+
     // Créer le client Gmail
     const gmailClient = new GmailClient(session.accessToken)
     
@@ -41,7 +49,6 @@ export async function POST(request: NextRequest) {
     let maxResults = 10 // Par défaut
 
     // Analyser l'instruction pour optimiser la requête
-    const instructionLower = instruction.toLowerCase()
     
     if (instructionLower.includes('non lu') || instructionLower.includes('unread')) {
       gmailQuery += ' is:unread'
@@ -113,7 +120,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         message: 'Aucun email correspondant trouvé pour cette instruction',
         emails: [],
-        replies: []
+        replies: [],
+        isAutomatic: isFullAutomatic
       })
     }
 
@@ -124,7 +132,64 @@ export async function POST(request: NextRequest) {
       userProfile
     )
 
-    // Préparer les emails avec leurs réponses générées
+    // Si automation complète, envoyer directement
+    if (isFullAutomatic) {
+      const sentReplies = []
+      const failedReplies = []
+
+      for (const reply of generatedReplies) {
+        try {
+          // Trouver l'email original
+          const originalEmail = filteredEmails.find(e => e.id === reply.emailId)
+          if (!originalEmail) continue
+
+          // Envoyer la réponse
+          await gmailClient.replyToEmail(originalEmail.id, {
+            body: reply.replyBody
+          }, userProfile.email)
+
+          sentReplies.push({
+            emailId: reply.emailId,
+            to: originalEmail.from,
+            subject: reply.replySubject,
+            body: reply.replyBody,
+            originalSubject: originalEmail.subject,
+            sentAt: new Date().toISOString()
+          })
+        } catch (error) {
+          failedReplies.push({
+            emailId: reply.emailId,
+            error: error instanceof Error ? error.message : 'Erreur inconnue'
+          })
+        }
+      }
+
+      // Sécurité : limiter à 20 emails automatiques par session
+      if (sentReplies.length > 20) {
+        return NextResponse.json({
+          error: 'Limite de sécurité dépassée : maximum 20 emails automatiques par session'
+        }, { status: 400 })
+      }
+
+      return NextResponse.json({
+        message: `🚀 ENVOI AUTOMATIQUE : ${sentReplies.length} réponses envoyées automatiquement`,
+        instruction: instruction,
+        isAutomatic: true,
+        automaticResults: {
+          sent: sentReplies,
+          failed: failedReplies,
+          total: sentReplies.length + failedReplies.length
+        },
+        stats: {
+          totalEmails: filteredEmails.length,
+          repliesSent: sentReplies.length,
+          repliesFailed: failedReplies.length,
+          successRate: sentReplies.length / (sentReplies.length + failedReplies.length) * 100
+        }
+      })
+    }
+
+    // Sinon, mode prévisualisation classique
     const emailsWithReplies = filteredEmails.map(email => {
       const reply = generatedReplies.find(r => r.emailId === email.id)
       return {
@@ -147,6 +212,7 @@ export async function POST(request: NextRequest) {
       instructionAnalysis,
       emailsWithReplies,
       userProfile,
+      isAutomatic: false,
       stats: {
         totalEmails: filteredEmails.length,
         repliesGenerated: generatedReplies.length,
