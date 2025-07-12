@@ -4,13 +4,13 @@ import { authOptions } from '@/lib/auth'
 import { GmailClient } from '@/lib/gmail'
 import { analyzeInstruction, generateReplyFromInstruction } from '@/lib/openai'
 
-// Types pour les emails et critères
-interface EmailData {
+interface EmailItem {
   id: string
-  subject: string
-  snippet: string
   from: string
+  subject: string
   date: string
+  snippet: string
+  body?: string
   isRead: boolean
 }
 
@@ -24,7 +24,7 @@ interface FilterCriteria {
 }
 
 // Fonction pour filtrer les emails selon les critères
-function filterEmailsByCriteria(emails: EmailData[], criteria: FilterCriteria) {
+function filterEmailsByCriteria(emails: EmailItem[], criteria: FilterCriteria): EmailItem[] {
   let filteredEmails = emails
   
   // Filtrer par expéditeur spécifique
@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
     const filteredEmails = filterEmailsByCriteria(emails, criteria)
     
     console.log('🎯 Emails filtrés selon les critères:', filteredEmails.length)
-    console.log('📊 Critères appliqués:', criteria)
+    console.log('�� Critères appliqués:', criteria)
 
     // Obtenir le profil utilisateur
     const userProfile = await gmailClient.getUserProfile()
