@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { CheckCircle, XCircle, Edit3, Send, Clock, User, Mail, MessageSquare, Sparkles } from 'lucide-react'
+import { CheckCircle, Edit3, Send, Clock, Mail, MessageSquare, Sparkles } from 'lucide-react'
 
 interface Reply {
   emailId: string
@@ -27,9 +27,15 @@ interface EmailWithReply {
   reply: Reply | null
 }
 
+interface ReplyToSend {
+  emailId: string
+  replyBody: string
+  approved: boolean
+}
+
 interface ReplyPreviewProps {
   emailsWithReplies: EmailWithReply[]
-  onSendReplies: (replies: any[]) => void
+  onSendReplies: (replies: ReplyToSend[]) => void
   onBack: () => void
   isLoading?: boolean
 }
@@ -96,11 +102,11 @@ export default function ReplyPreview({
   }
 
   const handleSendAll = () => {
-    const repliesToSend = emailsWithReplies
+    const repliesToSend: ReplyToSend[] = emailsWithReplies
       .filter(({ email }) => replyStates[email.id]?.approved)
       .map(({ email, reply }) => ({
         emailId: email.id,
-        replyBody: replyStates[email.id]?.editedBody || reply?.replyBody,
+        replyBody: replyStates[email.id]?.editedBody || reply?.replyBody || '',
         approved: true
       }))
 
@@ -321,7 +327,7 @@ export default function ReplyPreview({
             Aucune réponse générée
           </h3>
           <p className="text-gray-500">
-            Aucune réponse n'a pu être générée pour cette instruction.
+            Aucune réponse n&apos;a pu être générée pour cette instruction.
           </p>
         </div>
       )}

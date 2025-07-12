@@ -200,11 +200,25 @@ Réponds UNIQUEMENT avec le JSON.
   }
 }
 
+interface EmailData {
+  id: string
+  from: string
+  subject: string
+  date: string
+  body?: string
+  snippet: string
+}
+
+interface UserProfile {
+  email: string
+  name: string
+}
+
 // Nouvelle fonction pour générer des réponses automatiques
 export async function generateReplyFromInstruction(
-  emails: any[],
+  emails: EmailData[],
   instruction: string,
-  userProfile?: { email: string; name: string }
+  userProfile?: UserProfile
 ): Promise<GeneratedReply[]> {
   try {
     const replies: GeneratedReply[] = []
@@ -299,10 +313,10 @@ Réponds UNIQUEMENT avec le JSON, sans autre texte.
 
 // Nouvelle fonction pour générer une réponse simple
 export async function generateSimpleReply(
-  originalEmail: any,
+  originalEmail: EmailData,
   replyType: 'acknowledgment' | 'thanks' | 'info_request' | 'meeting_proposal' | 'custom',
   customMessage?: string,
-  userProfile?: { email: string; name: string }
+  userProfile?: UserProfile
 ): Promise<string> {
   try {
     let replyTemplate = ''

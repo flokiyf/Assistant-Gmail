@@ -23,18 +23,68 @@ interface AnalysisResult {
   emailsAnalyzed: number
 }
 
+interface InstructionAnalysis {
+  isReplyInstruction: boolean
+  isAnalysisInstruction: boolean
+  instruction: {
+    type: string
+    tone: string
+    style: string
+    action: string
+    targetEmails: string[]
+    customMessage?: string
+  } | null
+  confidence: number
+}
+
+interface EmailWithReply {
+  email: {
+    id: string
+    from: string
+    subject: string
+    date: string
+    snippet: string
+    body?: string
+    isRead: boolean
+  }
+  reply: {
+    emailId: string
+    originalFrom: string
+    originalSubject: string
+    replySubject: string
+    replyBody: string
+    tone: string
+    confidence: number
+    reasoning: string
+  } | null
+}
+
+interface UserProfile {
+  email: string
+  name: string
+}
+
+interface AutomaticResult {
+  sent: Array<{
+    to: string
+    subject: string
+    emailId: string
+  }>
+  failed: Array<{
+    emailId: string
+    error: string
+  }>
+  total: number
+}
+
 interface ReplyResult {
   message: string
   instruction: string
-  instructionAnalysis: any
-  emailsWithReplies: any[]
-  userProfile: any
+  instructionAnalysis: InstructionAnalysis
+  emailsWithReplies: EmailWithReply[]
+  userProfile: UserProfile
   isAutomatic?: boolean
-  automaticResults?: {
-    sent: any[]
-    failed: any[]
-    total: number
-  }
+  automaticResults?: AutomaticResult
   stats: {
     totalEmails: number
     repliesGenerated?: number
@@ -236,26 +286,26 @@ export default function InstructionPanel() {
         if (response.ok) {
           setReplyResult(data)
           
-          // Si c'est un envoi automatique, afficher les résultats dans analysisResult
+          // Vérifier si c'est un envoi automatique
           if (data.isAutomatic) {
             const { automaticResults, stats } = data
-            const sentList = automaticResults.sent.map((s: any) => 
+            const sentList = automaticResults.sent.map((s: AutomaticResult['sent'][0]) => 
               `📧 **Envoyé à ${s.to}** - ${s.subject}`
             ).join('\n')
             
             const failedList = automaticResults.failed.length > 0 ? 
-              `\n\n❌ **Échecs:**\n${automaticResults.failed.map((f: any) => 
+              `\n\n❌ **Échecs:**\n${automaticResults.failed.map((f: AutomaticResult['failed'][0]) => 
                 `• Email ${f.emailId}: ${f.error}`
               ).join('\n')}` : ''
 
             setAnalysisResult({
-              summary: `${data.message}\n\n📊 **Statistiques:**\n• Emails analysés: ${stats.totalEmails}\n• Réponses envoyées: ${stats.repliesSent}\n• Échecs: ${stats.repliesFailed}\n• Taux de réussite: ${Math.round(stats.successRate)}%\n\n📋 **Détails des envois:**\n${sentList}${failedList}`,
+              summary: `${data.message}\n\n📊 **Statistiques:**\n• Emails analysés: ${stats.totalEmails}\n• Réponses envoyées: ${stats.repliesSent}\n• Échecs: ${stats.repliesFailed}\n• Taux de réussite: ${Math.round((stats.successRate || 0) * 100)}%\n\n📋 **Détails des envois:**\n${sentList}${failedList}`,
               stats: { 
                 total: stats.totalEmails, 
-                nonLus: stats.repliesSent, 
-                analysés: stats.repliesSent 
+                nonLus: stats.repliesSent || 0, 
+                analysés: stats.repliesSent || 0
               },
-              emailsAnalyzed: stats.repliesSent
+              emailsAnalyzed: stats.repliesSent || 0
             })
           } else {
             setShowReplyPreview(true)
@@ -301,7 +351,7 @@ export default function InstructionPanel() {
     }
   }
 
-  const handleSendReplies = async (replies: any[]) => {
+  const handleSendReplies = async (replies: Array<{ emailId: string; replyBody: string; approved: boolean }>) => {
     setIsProcessing(true)
     
     try {
@@ -317,7 +367,7 @@ export default function InstructionPanel() {
 
       if (response.ok) {
         setAnalysisResult({
-          summary: `✅ ${data.message}\n\n${data.results.map((r: any) => 
+          summary: `✅ ${data.message}\n\n${data.results.map((r: { status: string; message: string }) => 
             `📧 ${r.status === 'sent' ? 'Envoyé' : r.status === 'error' ? 'Erreur' : 'Ignoré'}: ${r.message}`
           ).join('\n')}`,
           stats: { 

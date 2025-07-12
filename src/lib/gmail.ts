@@ -31,8 +31,8 @@ export interface ReplyData {
 }
 
 interface MessageHeader {
-  name: string
-  value: string
+  name?: string | null
+  value?: string | null
 }
 
 interface MessagePart {
@@ -100,7 +100,7 @@ export class GmailClient {
       const headers = message.payload.headers || []
       
       const getHeader = (name: string) => 
-        headers.find((h: MessageHeader) => h.name.toLowerCase() === name.toLowerCase())?.value || ''
+        headers.find((h: MessageHeader) => h.name?.toLowerCase() === name.toLowerCase())?.value || ''
 
       const subject = getHeader('Subject')
       const from = getHeader('From')
@@ -176,7 +176,7 @@ export class GmailClient {
 
   // Nouvelle méthode pour créer un email au format RFC 2822
   private createEmailMessage(emailData: EmailToSend, userEmail: string): string {
-    const { to, subject, body, cc, bcc, threadId, inReplyTo, references } = emailData
+    const { to, subject, body, cc, bcc, inReplyTo, references } = emailData
     
     let message = ''
     message += `From: ${userEmail}\r\n`
@@ -240,7 +240,7 @@ export class GmailClient {
 
       const originalHeaders = originalResponse.data.payload?.headers || []
       const getOriginalHeader = (name: string) => 
-        originalHeaders.find((h: any) => h.name.toLowerCase() === name.toLowerCase())?.value || ''
+        originalHeaders.find((h: MessageHeader) => h.name?.toLowerCase() === name.toLowerCase())?.value || ''
 
       const originalSubject = getOriginalHeader('Subject')
       const originalFrom = getOriginalHeader('From')
