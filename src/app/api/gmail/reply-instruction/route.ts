@@ -4,6 +4,124 @@ import { authOptions } from '@/lib/auth'
 import { GmailClient } from '@/lib/gmail'
 import { analyzeInstruction, generateReplyFromInstruction } from '@/lib/openai'
 
+// Fonction pour filtrer les emails selon les critères
+function filterEmailsByCriteria(emails: any[], criteria: any, instruction: string) {
+  let filteredEmails = emails
+  
+  // Filtrer par expéditeur spécifique
+  if (criteria.specific_sender) {
+    filteredEmails = filteredEmails.filter(email => 
+      email.from.toLowerCase().includes(criteria.specific_sender.toLowerCase())
+    )
+  }
+  
+  // Filtrer par catégorie
+  if (criteria.category && criteria.category !== 'tous') {
+    filteredEmails = filteredEmails.filter(email => {
+      const emailContent = (email.subject + ' ' + email.snippet + ' ' + email.from).toLowerCase()
+      
+      switch (criteria.category) {
+        case 'recrutement':
+          return emailContent.includes('job') || emailContent.includes('emploi') || 
+                 emailContent.includes('recrutement') || emailContent.includes('candidature') ||
+                 emailContent.includes('career') || emailContent.includes('hiring') ||
+                 emailContent.includes('indeed') || emailContent.includes('linkedin')
+        case 'travail':
+          return emailContent.includes('travail') || emailContent.includes('bureau') ||
+                 emailContent.includes('projet') || emailContent.includes('meeting') ||
+                 emailContent.includes('réunion') || emailContent.includes('work')
+        case 'client':
+          return emailContent.includes('client') || emailContent.includes('commande') ||
+                 emailContent.includes('service') || emailContent.includes('support') ||
+                 emailContent.includes('customer') || emailContent.includes('order')
+        case 'commercial':
+          return emailContent.includes('vente') || emailContent.includes('commercial') ||
+                 emailContent.includes('promo') || emailContent.includes('offre') ||
+                 emailContent.includes('sale') || emailContent.includes('discount')
+        case 'personnel':
+          return emailContent.includes('personnel') || emailContent.includes('family') ||
+                 emailContent.includes('ami') || emailContent.includes('personal')
+        default:
+          return true
+      }
+    })
+  }
+  
+  // Filtrer par mots-clés
+  if (criteria.keywords && criteria.keywords.length > 0) {
+    filteredEmails = filteredEmails.filter(email => {
+      const emailContent = (email.subject + ' ' + email.snippet + ' ' + email.from).toLowerCase()
+      return criteria.keywords.some((keyword: string) => 
+        emailContent.includes(keyword.toLowerCase())
+      )
+    })
+  }
+  
+  // Filtrer par période temporelle
+  if (criteria.time_period && criteria.time_period !== 'tous') {
+    const now = new Date()
+    let cutoffDate = new Date()
+    
+    switch (criteria.time_period) {
+      case 'aujourd\'hui':
+        cutoffDate.setHours(0, 0, 0, 0)
+        break
+      case '7 jours':
+        cutoffDate.setDate(now.getDate() - 7)
+        break
+      case '30 jours':
+        cutoffDate.setDate(now.getDate() - 30)
+        break
+      default:
+        cutoffDate.setDate(now.getDate() - 20) // Par défaut 20 jours
+    }
+    
+    filteredEmails = filteredEmails.filter(email => {
+      const emailDate = new Date(email.date)
+      return emailDate >= cutoffDate
+    })
+  }
+  
+  // Filtrer par type d'email
+  if (criteria.email_type && criteria.email_type !== 'tous') {
+    switch (criteria.email_type) {
+      case 'non_lus':
+        filteredEmails = filteredEmails.filter(email => !email.isRead)
+        break
+      case 'prioritaires':
+        filteredEmails = filteredEmails.filter(email => 
+          email.subject.toLowerCase().includes('urgent') || 
+          email.subject.toLowerCase().includes('important')
+        )
+        break
+      case 'urgent':
+        filteredEmails = filteredEmails.filter(email => 
+          email.subject.toLowerCase().includes('urgent') || 
+          email.subject.toLowerCase().includes('asap')
+        )
+        break
+    }
+  }
+  
+  // Limiter par nombre selon count_limit
+  if (criteria.count_limit) {
+    switch (criteria.count_limit) {
+      case 'un':
+        filteredEmails = filteredEmails.slice(0, 1)
+        break
+      case 'quelques':
+        filteredEmails = filteredEmails.slice(0, 5)
+        break
+      case 'tous':
+        // Garder tous, mais limiter à 20 pour éviter les abus
+        filteredEmails = filteredEmails.slice(0, 20)
+        break
+    }
+  }
+  
+  return filteredEmails
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -16,8 +134,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Instruction manquante' }, { status: 400 })
     }
 
+    console.log('📝 Instruction reçue:', instruction)
+
     // Analyser l'instruction pour déterminer si c'est une réponse
     const instructionAnalysis = await analyzeInstruction(instruction)
+    console.log('🔍 Analyse de l\'instruction:', instructionAnalysis)
     
     if (!instructionAnalysis.isReplyInstruction) {
       return NextResponse.json({ error: 'Cette instruction n\'est pas une demande de réponse' }, { status: 400 })
@@ -26,24 +147,26 @@ export async function POST(request: NextRequest) {
     // Créer le client Gmail
     const gmailClient = new GmailClient(session.accessToken)
 
-    // Récupérer les emails récents (20 derniers jours)
+    // Récupérer les emails récents (50 pour avoir plus de choix)
     const emails = await gmailClient.getMessages(50)
+    console.log('📧 Emails récupérés:', emails.length)
     
-    // Filtrer les emails selon l'instruction
-    const recentEmails = emails.filter(email => {
-      const emailDate = new Date(email.date)
-      const twentyDaysAgo = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000)
-      return emailDate > twentyDaysAgo
-    })
+    // Filtrer les emails selon les critères intelligents
+    const criteria = instructionAnalysis.instruction?.targetCriteria || {}
+    const filteredEmails = filterEmailsByCriteria(emails, criteria, instruction)
+    
+    console.log('🎯 Emails filtrés selon les critères:', filteredEmails.length)
+    console.log('📊 Critères appliqués:', criteria)
 
     // Obtenir le profil utilisateur
     const userProfile = await gmailClient.getUserProfile()
 
-    // Générer les réponses pour tous les emails
-    const replies = await generateReplyFromInstruction(recentEmails, instruction, userProfile)
+    // Générer les réponses pour les emails filtrés
+    const replies = await generateReplyFromInstruction(filteredEmails, instruction, userProfile)
+    console.log('💬 Réponses générées:', replies.length)
 
     // Créer les EmailWithReply pour le retour
-    const emailsWithReplies = recentEmails.map(email => {
+    const emailsWithReplies = filteredEmails.map(email => {
       const reply = replies.find(r => r.emailId === email.id)
       return {
         email,
@@ -62,16 +185,15 @@ export async function POST(request: NextRequest) {
     )
 
     if (isAutomatic) {
+      console.log('🚀 Mode automatique détecté')
+      
       // Envoyer automatiquement les réponses
       const sentResults = []
       const failedResults = []
       let sentCount = 0
       let failedCount = 0
 
-      // Limiter à 20 emails maximum pour éviter les abus
-      const emailsToProcess = emailsWithReplies.slice(0, 20)
-
-      for (const { email, reply } of emailsToProcess) {
+      for (const { email, reply } of emailsWithReplies) {
         if (!reply) continue
 
         try {
@@ -82,8 +204,9 @@ export async function POST(request: NextRequest) {
             emailId: email.id
           })
           sentCount++
+          console.log(`✅ Réponse envoyée à: ${email.from}`)
         } catch (error) {
-          console.error(`Erreur envoi réponse à ${email.id}:`, error)
+          console.error(`❌ Erreur envoi réponse à ${email.id}:`, error)
           failedResults.push({
             emailId: email.id,
             error: error instanceof Error ? error.message : 'Erreur inconnue'
@@ -92,7 +215,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const totalEmails = emailsToProcess.length
+      const totalEmails = emailsWithReplies.length
       const successRate = totalEmails > 0 ? sentCount / totalEmails : 0
 
       return NextResponse.json({
@@ -108,7 +231,7 @@ export async function POST(request: NextRequest) {
           total: totalEmails
         },
         stats: {
-          totalEmails,
+          totalEmails: filteredEmails.length,
           repliesGenerated: replies.length,
           averageConfidence: replies.length > 0 ? replies.reduce((sum, r) => sum + r.confidence, 0) / replies.length : 0,
           repliesSent: sentCount,
@@ -117,6 +240,8 @@ export async function POST(request: NextRequest) {
         }
       })
     } else {
+      console.log('👁️ Mode prévisualisation')
+      
       // Mode prévisualisation
       return NextResponse.json({
         message: `${replies.length} réponses générées pour prévisualisation`,
@@ -126,7 +251,7 @@ export async function POST(request: NextRequest) {
         userProfile,
         isAutomatic: false,
         stats: {
-          totalEmails: recentEmails.length,
+          totalEmails: filteredEmails.length,
           repliesGenerated: replies.length,
           averageConfidence: replies.length > 0 ? replies.reduce((sum, r) => sum + r.confidence, 0) / replies.length : 0
         }
@@ -134,7 +259,7 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error) {
-    console.error('Erreur lors du traitement de l\'instruction de réponse:', error)
+    console.error('❌ Erreur lors du traitement de l\'instruction de réponse:', error)
     return NextResponse.json({ 
       error: error instanceof Error ? error.message : 'Erreur interne du serveur' 
     }, { status: 500 })
