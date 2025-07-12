@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import ReplyPreview from './ReplyPreview'
 
 interface InstructionTemplate {
   id: string
@@ -8,7 +9,7 @@ interface InstructionTemplate {
   description: string
   instruction: string
   icon: React.ReactElement
-  category: 'work' | 'personal' | 'analysis' | 'search'
+  category: 'work' | 'personal' | 'analysis' | 'search' | 'reply'
   color: string
 }
 
@@ -20,6 +21,19 @@ interface AnalysisResult {
     analysés: number
   }
   emailsAnalyzed: number
+}
+
+interface ReplyResult {
+  message: string
+  instruction: string
+  instructionAnalysis: any
+  emailsWithReplies: any[]
+  userProfile: any
+  stats: {
+    totalEmails: number
+    repliesGenerated: number
+    averageConfidence: number
+  }
 }
 
 const instructionTemplates: InstructionTemplate[] = [
@@ -94,6 +108,34 @@ const instructionTemplates: InstructionTemplate[] = [
     icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>,
     category: 'analysis',
     color: 'from-yellow-500 to-yellow-600'
+  },
+  // Nouveaux templates pour les réponses
+  {
+    id: 'reply-recruiters',
+    title: 'Réponse Recruteurs',
+    description: 'Répondre automatiquement aux emails de recrutement',
+    instruction: 'Réponds à tous les emails de recrutement des 7 derniers jours avec un accusé de réception professionnel confirmant mon intérêt et demandant plus de détails sur le poste.',
+    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 7.89a2 2 0 002.83 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>,
+    category: 'reply',
+    color: 'from-emerald-500 to-emerald-600'
+  },
+  {
+    id: 'reply-unread',
+    title: 'Réponse Non Lus',
+    description: 'Répondre aux emails non lus importants',
+    instruction: 'Réponds à tous les emails non lus d\'aujourd\'hui avec un accusé de réception professionnel et un délai de réponse plus détaillée.',
+    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>,
+    category: 'reply',
+    color: 'from-pink-500 to-pink-600'
+  },
+  {
+    id: 'reply-clients',
+    title: 'Réponse Clients',
+    description: 'Répondre aux emails clients avec un service professionnel',
+    instruction: 'Réponds à tous les emails contenant les mots "client", "commande", ou "service" avec un message professionnel confirmant la prise en compte de leur demande.',
+    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>,
+    category: 'reply',
+    color: 'from-cyan-500 to-cyan-600'
   }
 ]
 
@@ -101,7 +143,8 @@ const categoryLabels = {
   work: { label: 'Professionnel', color: 'bg-blue-100 text-blue-800 border-blue-200' },
   personal: { label: 'Personnel', color: 'bg-green-100 text-green-800 border-green-200' },
   analysis: { label: 'Analyse', color: 'bg-purple-100 text-purple-800 border-purple-200' },
-  search: { label: 'Recherche', color: 'bg-orange-100 text-orange-800 border-orange-200' }
+  search: { label: 'Recherche', color: 'bg-orange-100 text-orange-800 border-orange-200' },
+  reply: { label: 'Réponse', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' }
 }
 
 export default function InstructionPanel() {
@@ -109,8 +152,10 @@ export default function InstructionPanel() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [showTemplates, setShowTemplates] = useState(true)
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null)
+  const [replyResult, setReplyResult] = useState<ReplyResult | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [currentInstruction, setCurrentInstruction] = useState<string>('')
+  const [showReplyPreview, setShowReplyPreview] = useState(false)
 
   const handleSendCustomInstruction = async () => {
     if (customInstruction.trim()) {
@@ -129,26 +174,59 @@ export default function InstructionPanel() {
     setIsProcessing(true)
     setCurrentInstruction(instruction)
     setAnalysisResult(null)
+    setReplyResult(null)
+    setShowReplyPreview(false)
 
     try {
-      const response = await fetch('/api/gmail/instructions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ instruction })
-      })
+      // Détecter si c'est une instruction de réponse
+      const isReplyInstruction = instruction.toLowerCase().includes('réponds') || 
+                                instruction.toLowerCase().includes('reply') ||
+                                instruction.toLowerCase().includes('envoie') ||
+                                instruction.toLowerCase().includes('écris')
 
-      const data = await response.json()
-
-      if (response.ok && data.result) {
-        setAnalysisResult(data.result)
-      } else {
-        setAnalysisResult({
-          summary: `❌ Erreur : ${data.error || 'Impossible de traiter votre instruction'}`,
-          stats: { total: 0, nonLus: 0, analysés: 0 },
-          emailsAnalyzed: 0
+      if (isReplyInstruction) {
+        // Traiter comme une instruction de réponse
+        const response = await fetch('/api/gmail/reply-instruction', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ instruction })
         })
+
+        const data = await response.json()
+
+        if (response.ok) {
+          setReplyResult(data)
+          setShowReplyPreview(true)
+        } else {
+          setAnalysisResult({
+            summary: `❌ Erreur : ${data.error || 'Impossible de traiter votre instruction de réponse'}`,
+            stats: { total: 0, nonLus: 0, analysés: 0 },
+            emailsAnalyzed: 0
+          })
+        }
+      } else {
+        // Traiter comme une instruction d'analyse (comportement existant)
+        const response = await fetch('/api/gmail/instructions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ instruction })
+        })
+
+        const data = await response.json()
+
+        if (response.ok && data.result) {
+          setAnalysisResult(data.result)
+        } else {
+          setAnalysisResult({
+            summary: `❌ Erreur : ${data.error || 'Impossible de traiter votre instruction'}`,
+            stats: { total: 0, nonLus: 0, analysés: 0 },
+            emailsAnalyzed: 0
+          })
+        }
       }
     } catch (error) {
       console.error('Erreur lors du traitement de l\'instruction:', error)
@@ -160,6 +238,58 @@ export default function InstructionPanel() {
     } finally {
       setIsProcessing(false)
     }
+  }
+
+  const handleSendReplies = async (replies: any[]) => {
+    setIsProcessing(true)
+    
+    try {
+      const response = await fetch('/api/gmail/send-replies', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ replies })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setAnalysisResult({
+          summary: `✅ ${data.message}\n\n${data.results.map((r: any) => 
+            `📧 ${r.status === 'sent' ? 'Envoyé' : r.status === 'error' ? 'Erreur' : 'Ignoré'}: ${r.message}`
+          ).join('\n')}`,
+          stats: { 
+            total: data.stats.total, 
+            nonLus: data.stats.sent, 
+            analysés: data.stats.errors 
+          },
+          emailsAnalyzed: data.stats.sent
+        })
+        setShowReplyPreview(false)
+        setReplyResult(null)
+      } else {
+        setAnalysisResult({
+          summary: `❌ Erreur lors de l'envoi : ${data.error || 'Erreur inconnue'}`,
+          stats: { total: 0, nonLus: 0, analysés: 0 },
+          emailsAnalyzed: 0
+        })
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'envoi des réponses:', error)
+      setAnalysisResult({
+        summary: '❌ Erreur de connexion lors de l\'envoi des réponses.',
+        stats: { total: 0, nonLus: 0, analysés: 0 },
+        emailsAnalyzed: 0
+      })
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleBackFromPreview = () => {
+    setShowReplyPreview(false)
+    setReplyResult(null)
   }
 
   const filteredTemplates = selectedCategory === 'all' 
@@ -182,6 +312,18 @@ export default function InstructionPanel() {
       .replace(/([A-Za-z0-9]{50,})/g, '<span class="bg-gray-100 px-2 py-1 rounded text-xs font-mono break-all">$1</span>')
       .replace(/\n\n/g, '<br><br>')
       .replace(/\n/g, '<br>')
+  }
+
+  // Afficher la prévisualisation des réponses si disponible
+  if (showReplyPreview && replyResult) {
+    return (
+      <ReplyPreview
+        emailsWithReplies={replyResult.emailsWithReplies}
+        onSendReplies={handleSendReplies}
+        onBack={handleBackFromPreview}
+        isLoading={isProcessing}
+      />
+    )
   }
 
   return (
