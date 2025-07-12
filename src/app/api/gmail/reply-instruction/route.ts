@@ -4,14 +4,33 @@ import { authOptions } from '@/lib/auth'
 import { GmailClient } from '@/lib/gmail'
 import { analyzeInstruction, generateReplyFromInstruction } from '@/lib/openai'
 
+// Types pour les emails et critères
+interface EmailData {
+  id: string
+  subject: string
+  snippet: string
+  from: string
+  date: string
+  isRead: boolean
+}
+
+interface FilterCriteria {
+  specific_sender?: string | null
+  category?: string
+  keywords?: string[]
+  time_period?: string
+  email_type?: string
+  count_limit?: string
+}
+
 // Fonction pour filtrer les emails selon les critères
-function filterEmailsByCriteria(emails: any[], criteria: any, instruction: string) {
+function filterEmailsByCriteria(emails: EmailData[], criteria: FilterCriteria) {
   let filteredEmails = emails
   
   // Filtrer par expéditeur spécifique
   if (criteria.specific_sender) {
     filteredEmails = filteredEmails.filter(email => 
-      email.from.toLowerCase().includes(criteria.specific_sender.toLowerCase())
+      email.from.toLowerCase().includes(criteria.specific_sender!.toLowerCase())
     )
   }
   
@@ -51,7 +70,7 @@ function filterEmailsByCriteria(emails: any[], criteria: any, instruction: strin
   if (criteria.keywords && criteria.keywords.length > 0) {
     filteredEmails = filteredEmails.filter(email => {
       const emailContent = (email.subject + ' ' + email.snippet + ' ' + email.from).toLowerCase()
-      return criteria.keywords.some((keyword: string) => 
+      return criteria.keywords!.some((keyword: string) => 
         emailContent.includes(keyword.toLowerCase())
       )
     })
@@ -60,7 +79,7 @@ function filterEmailsByCriteria(emails: any[], criteria: any, instruction: strin
   // Filtrer par période temporelle
   if (criteria.time_period && criteria.time_period !== 'tous') {
     const now = new Date()
-    let cutoffDate = new Date()
+    const cutoffDate = new Date()
     
     switch (criteria.time_period) {
       case 'aujourd\'hui':
@@ -153,7 +172,7 @@ export async function POST(request: NextRequest) {
     
     // Filtrer les emails selon les critères intelligents
     const criteria = instructionAnalysis.instruction?.targetCriteria || {}
-    const filteredEmails = filterEmailsByCriteria(emails, criteria, instruction)
+    const filteredEmails = filterEmailsByCriteria(emails, criteria)
     
     console.log('🎯 Emails filtrés selon les critères:', filteredEmails.length)
     console.log('📊 Critères appliqués:', criteria)
