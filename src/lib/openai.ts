@@ -32,6 +32,14 @@ export interface ReplyInstruction {
   action: string
   targetEmails: string[]
   customMessage?: string
+  targetCriteria?: {
+    specific_sender?: string | null
+    category?: string
+    keywords?: string[]
+    time_period?: string
+    email_type?: string
+    count_limit?: string
+  }
 }
 
 export interface InstructionAnalysis {
@@ -123,15 +131,33 @@ Réponds en JSON avec cette structure exacte :
   "tone": "professionnel|amical|formel|décontracté|neutre",
   "style": "court|moyen|long|détaillé",
   "action": "accusé de réception|remerciement|information|proposition|autre",
+  "targetCriteria": {
+    "specific_sender": "email ou nom spécifique ou null",
+    "category": "recrutement|travail|personnel|client|commercial|tous|null",
+    "keywords": ["mot-clé1", "mot-clé2"] ou [],
+    "time_period": "aujourd'hui|7 jours|30 jours|tous",
+    "email_type": "non_lus|tous|prioritaires|urgent",
+    "count_limit": "un|quelques|tous"
+  },
   "confidence": 0.0-1.0
 }
 
 RÈGLES :
 - Si l'instruction contient "réponds", "reply", "envoie", "écris" → isReplyInstruction = true
 - Si l'instruction contient "analyse", "montre", "trouve", "liste" → isAnalysisInstruction = true
-- Détermine le ton voulu (professionnel, amical, etc.)
-- Détermine le style (court, détaillé, etc.)
-- Identifie l'action demandée
+- Extrais les critères de ciblage précis :
+  * specific_sender: si un email/nom spécifique est mentionné
+  * category: type d'emails (recrutement, travail, etc.)
+  * keywords: mots-clés à rechercher dans les emails
+  * time_period: période temporelle mentionnée
+  * email_type: type d'emails (non lus, tous, etc.)
+  * count_limit: si l'instruction demande un, quelques ou tous les emails
+
+EXEMPLES :
+- "Réponds à l'email de flokiyf@gmail.com" → specific_sender: "flokiyf@gmail.com", count_limit: "un"
+- "Réponds aux emails de recrutement" → category: "recrutement", count_limit: "tous"
+- "Réponds automatiquement à tous les emails non lus" → email_type: "non_lus", count_limit: "tous"
+- "Réponds aux emails contenant 'job' ou 'emploi'" → keywords: ["job", "emploi"]
 
 Réponds UNIQUEMENT avec le JSON.
 `
@@ -149,7 +175,7 @@ Réponds UNIQUEMENT avec le JSON.
         }
       ],
       temperature: 0.1,
-      max_tokens: 300
+      max_tokens: 500
     })
 
     const response = completion.choices[0]?.message?.content
@@ -168,7 +194,8 @@ Réponds UNIQUEMENT avec le JSON.
         style: analysis.style || 'moyen',
         action: analysis.action || 'autre',
         targetEmails: [],
-        customMessage: instruction
+        customMessage: instruction,
+        targetCriteria: analysis.targetCriteria || {}
       } : null,
       confidence: analysis.confidence || 0.5
     }
@@ -184,6 +211,19 @@ Réponds UNIQUEMENT avec le JSON.
     const isReply = replyKeywords.some(keyword => lowerInstruction.includes(keyword))
     const isAnalysis = analysisKeywords.some(keyword => lowerInstruction.includes(keyword))
     
+    // Détection basique des critères
+    const targetCriteria = {
+      specific_sender: null,
+      category: lowerInstruction.includes('recrutement') ? 'recrutement' : 
+                lowerInstruction.includes('travail') ? 'travail' : 
+                lowerInstruction.includes('client') ? 'client' : 'tous',
+      keywords: [],
+      time_period: lowerInstruction.includes('aujourd\'hui') ? 'aujourd\'hui' : 
+                   lowerInstruction.includes('7 jours') ? '7 jours' : '30 jours',
+      email_type: lowerInstruction.includes('non lus') ? 'non_lus' : 'tous',
+      count_limit: lowerInstruction.includes('un') || lowerInstruction.includes('seul') ? 'un' : 'tous'
+    }
+    
     return {
       isReplyInstruction: isReply,
       isAnalysisInstruction: isAnalysis,
@@ -193,7 +233,8 @@ Réponds UNIQUEMENT avec le JSON.
         style: 'moyen',
         action: 'autre',
         targetEmails: [],
-        customMessage: instruction
+        customMessage: instruction,
+        targetCriteria
       } : null,
       confidence: 0.7
     }
@@ -223,8 +264,20 @@ export async function generateReplyFromInstruction(
   try {
     const replies: GeneratedReply[] = []
     
-    for (const email of emails) {
-      const prompt = `
+    // Limiter le nombre d'emails traités en une fois pour éviter les timeouts
+    const maxEmails = 20
+    const emailsToProcess = emails.slice(0, maxEmails)
+    
+    for (const email of emailsToProcess) {
+      try {
+        // Limiter la longueur du contenu d'email pour éviter le dépassement de contexte
+        const emailContent = email.body || email.snippet
+        const maxContentLength = 1000 // Limite à 1000 caractères
+        const truncatedContent = emailContent.length > maxContentLength 
+          ? emailContent.substring(0, maxContentLength) + '...'
+          : emailContent
+
+        const prompt = `
 Tu es un assistant IA qui génère des réponses d'emails personnalisées.
 
 INSTRUCTION DE L'UTILISATEUR: "${instruction}"
@@ -233,7 +286,7 @@ EMAIL ORIGINAL:
 - Expéditeur: ${email.from}
 - Sujet: ${email.subject}
 - Date: ${email.date}
-- Corps: ${email.body || email.snippet}
+- Corps: ${truncatedContent}
 
 PROFIL UTILISATEUR:
 - Email: ${userProfile?.email || 'utilisateur@exemple.com'}
@@ -258,47 +311,52 @@ INSTRUCTIONS:
 Réponds UNIQUEMENT avec le JSON, sans autre texte.
 `
 
-      const completion = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: "Tu es un assistant expert en rédaction d'emails professionnels. Tu génères des réponses appropriées et personnalisées."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 400
-      })
-
-      const response = completion.choices[0]?.message?.content
-      if (!response) {
-        continue
-      }
-
-      try {
-        const replyData = JSON.parse(response)
-        
-        // Créer le sujet de réponse
-        const replySubject = email.subject.startsWith('Re: ') 
-          ? email.subject 
-          : `Re: ${email.subject}`
-
-        replies.push({
-          emailId: email.id,
-          originalFrom: email.from,
-          originalSubject: email.subject,
-          replySubject,
-          replyBody: replyData.replyBody,
-          tone: replyData.tone || 'neutre',
-          confidence: replyData.confidence || 0.5,
-          reasoning: replyData.reasoning || 'Réponse générée automatiquement'
+        const completion = await openai.chat.completions.create({
+          model: "gpt-3.5-turbo",
+          messages: [
+            {
+              role: "system",
+              content: "Tu es un assistant expert en rédaction d'emails professionnels. Tu génères des réponses appropriées et personnalisées."
+            },
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 400
         })
-      } catch (parseError) {
-        console.error('Erreur lors du parsing de la réponse:', parseError)
+
+        const response = completion.choices[0]?.message?.content
+        if (!response) {
+          console.log(`Pas de réponse générée pour l'email ${email.id}`)
+          continue
+        }
+
+        try {
+          const replyData = JSON.parse(response)
+          
+          // Créer le sujet de réponse
+          const replySubject = email.subject.startsWith('Re: ') 
+            ? email.subject 
+            : `Re: ${email.subject}`
+
+          replies.push({
+            emailId: email.id,
+            originalFrom: email.from,
+            originalSubject: email.subject,
+            replySubject,
+            replyBody: replyData.replyBody,
+            tone: replyData.tone || 'neutre',
+            confidence: replyData.confidence || 0.5,
+            reasoning: replyData.reasoning || 'Réponse générée automatiquement'
+          })
+        } catch (parseError) {
+          console.error(`Erreur lors du parsing de la réponse pour l'email ${email.id}:`, parseError)
+          continue
+        }
+      } catch (emailError) {
+        console.error(`Erreur lors de la génération de réponse pour l'email ${email.id}:`, emailError)
         continue
       }
     }

@@ -243,11 +243,49 @@ export default function InstructionPanel() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [currentInstruction, setCurrentInstruction] = useState<string>('')
   const [showReplyPreview, setShowReplyPreview] = useState(false)
+  const [isTestingSend, setIsTestingSend] = useState(false)
 
   const handleSendCustomInstruction = async () => {
     if (customInstruction.trim()) {
       await processInstruction(customInstruction)
       setCustomInstruction('')
+    }
+  }
+
+  const handleTestSend = async () => {
+    setIsTestingSend(true)
+    try {
+      const response = await fetch('/api/gmail/test-send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setAnalysisResult({
+          summary: `✅ Test d'envoi réussi !\n\n📧 **Email envoyé à:** ${data.userProfile.email}\n📝 **Sujet:** ${data.testEmailData.subject}\n🆔 **Message ID:** ${data.messageId}\n\n🎉 **L'envoi d'emails fonctionne correctement !**\n\nVérifiez votre boîte de réception (ou les spams) pour voir l'email de test.`,
+          stats: { total: 1, nonLus: 1, analysés: 1 },
+          emailsAnalyzed: 1
+        })
+      } else {
+        setAnalysisResult({
+          summary: `❌ Test d'envoi échoué :\n\n**Erreur:** ${data.error}\n\n**Détails:** ${JSON.stringify(data.details, null, 2)}\n\nVérifiez les logs de la console pour plus d'informations.`,
+          stats: { total: 0, nonLus: 0, analysés: 0 },
+          emailsAnalyzed: 0
+        })
+      }
+    } catch (error) {
+      console.error('Erreur lors du test d\'envoi:', error)
+      setAnalysisResult({
+        summary: `❌ Erreur de connexion lors du test d'envoi :\n\n${error instanceof Error ? error.message : 'Erreur inconnue'}`,
+        stats: { total: 0, nonLus: 0, analysés: 0 },
+        emailsAnalyzed: 0
+      })
+    } finally {
+      setIsTestingSend(false)
     }
   }
 
@@ -488,6 +526,23 @@ export default function InstructionPanel() {
             )}
             <span className="font-medium">
               {isProcessing ? 'Traitement...' : 'Exécuter'}
+            </span>
+          </button>
+          
+          <button
+            onClick={handleTestSend}
+            disabled={isTestingSend || isProcessing}
+            className="px-4 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 self-start transition-all duration-200 shadow-lg hover:shadow-xl"
+          >
+            {isTestingSend ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            )}
+            <span className="font-medium text-sm">
+              {isTestingSend ? 'Test...' : 'Test Envoi'}
             </span>
           </button>
         </div>

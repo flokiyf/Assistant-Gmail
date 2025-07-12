@@ -178,6 +178,15 @@ export class GmailClient {
   private createEmailMessage(emailData: EmailToSend, userEmail: string): string {
     const { to, subject, body, cc, bcc, inReplyTo, references } = emailData
     
+    console.log('🔨 Création du message RFC2822:', {
+      from: userEmail,
+      to,
+      subject,
+      bodyLength: body.length,
+      inReplyTo,
+      references
+    })
+    
     let message = ''
     message += `From: ${userEmail}\r\n`
     message += `To: ${to}\r\n`
@@ -200,17 +209,40 @@ export class GmailClient {
       message += `References: ${references}\r\n`
     }
     
+    message += `MIME-Version: 1.0\r\n`
     message += `Content-Type: text/plain; charset=UTF-8\r\n`
-    message += `Content-Transfer-Encoding: 7bit\r\n\r\n`
+    message += `Content-Transfer-Encoding: 7bit\r\n`
+    message += `\r\n`
     message += body
     
-    return Buffer.from(message).toString('base64').replace(/\+/g, '-').replace(/\//g, '_')
+    console.log('📝 Message RFC2822 créé:', {
+      totalLength: message.length,
+      preview: message.substring(0, 200) + '...'
+    })
+    
+    // Encodage base64 URL-safe pour Gmail
+    const encoded = Buffer.from(message).toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '') // Supprimer le padding
+    
+    console.log('🔐 Message encodé en base64, longueur finale:', encoded.length)
+    
+    return encoded
   }
 
   // Nouvelle méthode pour envoyer un email
   async sendEmail(emailData: EmailToSend, userEmail: string): Promise<string> {
     try {
+      console.log('📤 Tentative d\'envoi d\'email:', {
+        to: emailData.to,
+        subject: emailData.subject,
+        from: userEmail,
+        threadId: emailData.threadId
+      })
+
       const raw = this.createEmailMessage(emailData, userEmail)
+      console.log('📝 Message RFC2822 créé, longueur:', raw.length)
       
       const response = await this.gmail.users.messages.send({
         userId: 'me',
@@ -220,9 +252,13 @@ export class GmailClient {
         }
       })
 
+      console.log('✅ Email envoyé avec succès, ID:', response.data.id)
+      console.log('📊 Réponse Gmail complète:', response.data)
+
       return response.data.id!
     } catch (error) {
-      console.error('Erreur lors de l\'envoi de l\'email:', error)
+      console.error('❌ Erreur détaillée lors de l\'envoi de l\'email:', error)
+      console.error('📧 Données de l\'email qui ont échoué:', emailData)
       throw error
     }
   }
@@ -230,8 +266,20 @@ export class GmailClient {
   // Nouvelle méthode pour répondre à un email
   async replyToEmail(originalMessageId: string, replyData: ReplyData, userEmail: string): Promise<string> {
     try {
+      console.log('🔄 Début de la réponse à l\'email:', {
+        originalMessageId,
+        userEmail,
+        replyBodyLength: replyData.body.length
+      })
+
       // Récupérer l'email original pour extraire les métadonnées
       const originalMessage = await this.getMessageDetails(originalMessageId)
+      console.log('📧 Email original récupéré:', {
+        subject: originalMessage.subject,
+        from: originalMessage.from,
+        threadId: originalMessage.threadId
+      })
+
       const originalResponse = await this.gmail.users.messages.get({
         userId: 'me',
         id: originalMessageId,
@@ -246,6 +294,13 @@ export class GmailClient {
       const originalFrom = getOriginalHeader('From')
       const originalMessageIdHeader = getOriginalHeader('Message-ID')
       const originalReferences = getOriginalHeader('References')
+
+      console.log('📋 Headers extraits:', {
+        originalSubject,
+        originalFrom,
+        originalMessageIdHeader,
+        originalReferences
+      })
 
       // Créer le subject pour la réponse
       const replySubject = originalSubject.startsWith('Re: ') 
@@ -271,9 +326,21 @@ export class GmailClient {
         references
       }
 
-      return await this.sendEmail(emailData, userEmail)
+      console.log('📝 EmailData préparé pour envoi:', emailData)
+
+      const sentMessageId = await this.sendEmail(emailData, userEmail)
+      
+      console.log('🎉 Réponse envoyée avec succès! Message ID:', sentMessageId)
+      
+      return sentMessageId
     } catch (error) {
-      console.error('Erreur lors de la réponse à l\'email:', error)
+      console.error('❌ Erreur détaillée lors de la réponse à l\'email:', error)
+      console.error('🔍 Détails de l\'erreur:', {
+        originalMessageId,
+        userEmail,
+        replyData,
+        stack: error instanceof Error ? error.stack : 'Unknown error'
+      })
       throw error
     }
   }
