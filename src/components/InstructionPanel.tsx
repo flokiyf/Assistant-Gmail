@@ -29,10 +29,19 @@ interface ReplyResult {
   instructionAnalysis: any
   emailsWithReplies: any[]
   userProfile: any
+  isAutomatic?: boolean
+  automaticResults?: {
+    sent: any[]
+    failed: any[]
+    total: number
+  }
   stats: {
     totalEmails: number
-    repliesGenerated: number
-    averageConfidence: number
+    repliesGenerated?: number
+    averageConfidence?: number
+    repliesSent?: number
+    repliesFailed?: number
+    successRate?: number
   }
 }
 
@@ -109,33 +118,61 @@ const instructionTemplates: InstructionTemplate[] = [
     category: 'analysis',
     color: 'from-yellow-500 to-yellow-600'
   },
-  // Nouveaux templates pour les réponses
+  // Templates pour les réponses automatiques
   {
-    id: 'reply-recruiters',
-    title: 'Réponse Recruteurs',
+    id: 'reply-recruiters-auto',
+    title: 'Réponse Recruteurs (Auto)',
     description: 'Répondre automatiquement aux emails de recrutement',
-    instruction: 'Réponds à tous les emails de recrutement des 7 derniers jours avec un accusé de réception professionnel confirmant mon intérêt et demandant plus de détails sur le poste.',
-    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 7.89a2 2 0 002.83 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>,
+    instruction: 'Réponds automatiquement à tous les emails de recrutement des 7 derniers jours avec un accusé de réception professionnel confirmant mon intérêt et demandant plus de détails sur le poste.',
+    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
     category: 'reply',
     color: 'from-emerald-500 to-emerald-600'
   },
   {
-    id: 'reply-unread',
-    title: 'Réponse Non Lus',
-    description: 'Répondre aux emails non lus importants',
-    instruction: 'Réponds à tous les emails non lus d\'aujourd\'hui avec un accusé de réception professionnel et un délai de réponse plus détaillée.',
-    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>,
+    id: 'reply-unread-auto',
+    title: 'Réponse Non Lus (Auto)',
+    description: 'Répondre automatiquement aux emails non lus importants',
+    instruction: 'Réponds automatiquement à tous les emails non lus d\'aujourd\'hui avec un accusé de réception professionnel et un délai de réponse plus détaillée.',
+    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
     category: 'reply',
     color: 'from-pink-500 to-pink-600'
   },
   {
+    id: 'reply-clients-auto',
+    title: 'Réponse Clients (Auto)',
+    description: 'Répondre automatiquement aux emails clients',
+    instruction: 'Réponds automatiquement à tous les emails contenant les mots "client", "commande", ou "service" avec un message professionnel confirmant la prise en compte de leur demande.',
+    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
+    category: 'reply',
+    color: 'from-cyan-500 to-cyan-600'
+  },
+  // Templates pour les réponses avec prévisualisation
+  {
+    id: 'reply-recruiters',
+    title: 'Réponse Recruteurs',
+    description: 'Répondre aux emails de recrutement (avec prévisualisation)',
+    instruction: 'Réponds à tous les emails de recrutement des 7 derniers jours avec un accusé de réception professionnel confirmant mon intérêt et demandant plus de détails sur le poste.',
+    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 7.89a2 2 0 002.83 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>,
+    category: 'reply',
+    color: 'from-blue-500 to-blue-600'
+  },
+  {
+    id: 'reply-unread',
+    title: 'Réponse Non Lus',
+    description: 'Répondre aux emails non lus importants (avec prévisualisation)',
+    instruction: 'Réponds à tous les emails non lus d\'aujourd\'hui avec un accusé de réception professionnel et un délai de réponse plus détaillée.',
+    icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>,
+    category: 'reply',
+    color: 'from-indigo-500 to-indigo-600'
+  },
+  {
     id: 'reply-clients',
     title: 'Réponse Clients',
-    description: 'Répondre aux emails clients avec un service professionnel',
+    description: 'Répondre aux emails clients (avec prévisualisation)',
     instruction: 'Réponds à tous les emails contenant les mots "client", "commande", ou "service" avec un message professionnel confirmant la prise en compte de leur demande.',
     icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>,
     category: 'reply',
-    color: 'from-cyan-500 to-cyan-600'
+    color: 'from-purple-500 to-purple-600'
   }
 ]
 
@@ -198,7 +235,31 @@ export default function InstructionPanel() {
 
         if (response.ok) {
           setReplyResult(data)
-          setShowReplyPreview(true)
+          
+          // Si c'est un envoi automatique, afficher les résultats dans analysisResult
+          if (data.isAutomatic) {
+            const { automaticResults, stats } = data
+            const sentList = automaticResults.sent.map((s: any) => 
+              `📧 **Envoyé à ${s.to}** - ${s.subject}`
+            ).join('\n')
+            
+            const failedList = automaticResults.failed.length > 0 ? 
+              `\n\n❌ **Échecs:**\n${automaticResults.failed.map((f: any) => 
+                `• Email ${f.emailId}: ${f.error}`
+              ).join('\n')}` : ''
+
+            setAnalysisResult({
+              summary: `${data.message}\n\n📊 **Statistiques:**\n• Emails analysés: ${stats.totalEmails}\n• Réponses envoyées: ${stats.repliesSent}\n• Échecs: ${stats.repliesFailed}\n• Taux de réussite: ${Math.round(stats.successRate)}%\n\n📋 **Détails des envois:**\n${sentList}${failedList}`,
+              stats: { 
+                total: stats.totalEmails, 
+                nonLus: stats.repliesSent, 
+                analysés: stats.repliesSent 
+              },
+              emailsAnalyzed: stats.repliesSent
+            })
+          } else {
+            setShowReplyPreview(true)
+          }
         } else {
           setAnalysisResult({
             summary: `❌ Erreur : ${data.error || 'Impossible de traiter votre instruction de réponse'}`,
@@ -308,6 +369,9 @@ export default function InstructionPanel() {
       .replace(/🏢\s*(.*?)$/gm, '<div class="bg-green-50 p-3 rounded-lg mb-2 border-l-4 border-green-400"><span class="text-green-700">🏢 $1</span></div>')
       .replace(/💰\s*(.*?)$/gm, '<div class="bg-yellow-50 p-3 rounded-lg mb-2 border-l-4 border-yellow-400"><span class="text-yellow-700">💰 $1</span></div>')
       .replace(/📅\s*(.*?)$/gm, '<div class="bg-purple-50 p-3 rounded-lg mb-2 border-l-4 border-purple-400"><span class="text-purple-700">📅 $1</span></div>')
+      .replace(/🚀\s*(.*?)$/gm, '<div class="bg-emerald-50 p-3 rounded-lg mb-2 border-l-4 border-emerald-400"><span class="text-emerald-700">🚀 $1</span></div>')
+      .replace(/📊\s*(.*?)$/gm, '<div class="bg-indigo-50 p-3 rounded-lg mb-2 border-l-4 border-indigo-400"><span class="text-indigo-700">📊 $1</span></div>')
+      .replace(/❌\s*(.*?)$/gm, '<div class="bg-red-50 p-3 rounded-lg mb-2 border-l-4 border-red-400"><span class="text-red-700">❌ $1</span></div>')
       .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-blue-600 hover:text-blue-800 underline break-all text-xs">🔗 Lien</a>')
       .replace(/([A-Za-z0-9]{50,})/g, '<span class="bg-gray-100 px-2 py-1 rounded text-xs font-mono break-all">$1</span>')
       .replace(/\n\n/g, '<br><br>')
@@ -351,7 +415,7 @@ export default function InstructionPanel() {
             <textarea
               value={customInstruction}
               onChange={(e) => setCustomInstruction(e.target.value)}
-              placeholder="Exemple: Vérifie mes emails de demande de travail et donne-moi un résumé des réponses reçues..."
+              placeholder="Exemple: Réponds automatiquement aux emails de recrutement avec un message professionnel..."
               className="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-all duration-200 shadow-sm"
               rows={4}
               disabled={isProcessing}
@@ -373,7 +437,7 @@ export default function InstructionPanel() {
               </svg>
             )}
             <span className="font-medium">
-              {isProcessing ? 'Analyse...' : 'Analyser'}
+              {isProcessing ? 'Traitement...' : 'Exécuter'}
             </span>
           </button>
         </div>
@@ -395,12 +459,12 @@ export default function InstructionPanel() {
             <div className="flex-1 min-w-0 overflow-hidden">
               <div className="flex items-center gap-2 mb-3">
                 <h3 className="font-bold text-blue-900">
-                  {isProcessing ? '🔄 Analyse en cours...' : '✅ Analyse terminée'}
+                  {isProcessing ? '🔄 Traitement en cours...' : '✅ Terminé'}
                 </h3>
                 {analysisResult && (
                   <>
                     <span className="text-sm text-blue-700 bg-blue-100 px-2 py-1 rounded-lg">
-                      {analysisResult.stats.analysés} emails analysés
+                      {analysisResult.stats.analysés} actions effectuées
                     </span>
                     <button
                       onClick={() => {
@@ -409,7 +473,7 @@ export default function InstructionPanel() {
                       }}
                       className="ml-auto text-sm text-gray-500 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-lg transition-colors duration-200"
                     >
-                      Nouvelle analyse
+                      Nouvelle instruction
                     </button>
                   </>
                 )}
@@ -429,7 +493,7 @@ export default function InstructionPanel() {
                     <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
                     <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                   </div>
-                  <span className="text-sm">Analyse de vos emails en cours...</span>
+                  <span className="text-sm">Traitement de votre instruction...</span>
                 </div>
               )}
 
@@ -444,16 +508,16 @@ export default function InstructionPanel() {
                         </svg>
                       </div>
                       <div className="text-2xl font-bold text-blue-600 mb-1">{analysisResult.stats.total}</div>
-                      <div className="text-xs text-blue-700 font-medium">Emails trouvés</div>
+                      <div className="text-xs text-blue-700 font-medium">Emails traités</div>
                     </div>
-                    <div className="bg-white p-4 rounded-xl border border-orange-200 text-center shadow-sm hover:shadow-md transition-shadow">
+                    <div className="bg-white p-4 rounded-xl border border-emerald-200 text-center shadow-sm hover:shadow-md transition-shadow">
                       <div className="flex items-center justify-center mb-2">
-                        <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                        <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                         </svg>
                       </div>
-                      <div className="text-2xl font-bold text-orange-600 mb-1">{analysisResult.stats.nonLus}</div>
-                      <div className="text-xs text-orange-700 font-medium">Non lus</div>
+                      <div className="text-2xl font-bold text-emerald-600 mb-1">{analysisResult.stats.nonLus}</div>
+                      <div className="text-xs text-emerald-700 font-medium">Réponses envoyées</div>
                     </div>
                     <div className="bg-white p-4 rounded-xl border border-green-200 text-center shadow-sm hover:shadow-md transition-shadow">
                       <div className="flex items-center justify-center mb-2">
@@ -462,7 +526,7 @@ export default function InstructionPanel() {
                         </svg>
                       </div>
                       <div className="text-2xl font-bold text-green-600 mb-1">{analysisResult.stats.analysés}</div>
-                      <div className="text-xs text-green-700 font-medium">Analysés</div>
+                      <div className="text-xs text-green-700 font-medium">Succès</div>
                     </div>
                   </div>
 
@@ -472,7 +536,7 @@ export default function InstructionPanel() {
                       <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      <h4 className="font-bold text-gray-900">Résultat de l&apos;Analyse</h4>
+                      <h4 className="font-bold text-gray-900">Résultat</h4>
                     </div>
                     <div 
                       className="prose prose-sm max-w-none text-gray-800 leading-relaxed break-words overflow-hidden"
