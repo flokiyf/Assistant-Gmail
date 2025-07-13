@@ -1,414 +1,99 @@
-# Agent Gmail - Assistant Email Intelligent avec IA
+# Assistant Gmail
 
-Un agent Next.js avancé qui se connecte à votre compte Gmail via OAuth pour lire, analyser et **répondre automatiquement** à vos emails grâce à l'intelligence artificielle.
+![TypeScript](https://img.shields.io/badge/TypeScript-99.4%25-blue)
+[![Deploy with Vercel](https://vercel.com/button)](https://assistant-gmail.vercel.app)
+[![GitHub last commit](https://img.shields.io/github/last-commit/flokiyf/Assistant-Gmail)](https://github.com/flokiyf/Assistant-Gmail/commits/main)
+[![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-## 🚀 Fonctionnalités
+An intelligent assistant for Gmail that helps you manage your emails more efficiently using AI capabilities.
 
-### 📧 Gestion d'Emails
-- ✅ Authentification OAuth Google sécurisée
-- ✅ Lecture des emails Gmail en temps réel
-- ✅ Interface moderne et responsive
-- ✅ Recherche dans les emails
-- ✅ Marquage des emails comme lus
-- ✅ Affichage détaillé du contenu des emails
-- ✅ Pagination et filtrage
+## 🚀 Features
 
-### 🤖 Intelligence Artificielle
-- ✅ **Analyse intelligente des emails** avec OpenAI GPT-3.5-turbo
-- ✅ **Génération automatique de réponses** contextuelles
-- ✅ **Envoi automatique** avec mots-clés d'automation
-- ✅ **Prévisualisation des réponses** avant envoi
-- ✅ **Templates d'instructions** prêts à l'emploi
-- ✅ **Filtrage intelligent** (évite spam, newsletters, emails automatiques)
-- ✅ **Personnalisation** du ton et du style des réponses
+- **Smart Email Management**: Automated email categorization and prioritization
+- **TypeScript Integration**: Built with TypeScript for enhanced code reliability
+- **Modern Architecture**: Leveraging latest web technologies
+- **Responsive Design**: Works seamlessly across all devices
+- **AI-Powered**: Intelligent email processing and suggestions
 
-## 📋 Prérequis
+## 🛠️ Tech Stack
 
-1. **Node.js** (version 18 ou supérieure)
-2. **Compte Google Cloud** avec API Gmail activée
-3. **Credentials OAuth 2.0** configurés
-4. **Clé API OpenAI** pour l'intelligence artificielle
+- TypeScript (99.4%)
+- Next.js
+- Vercel Deployment
+- Gmail API Integration
 
-## 🛠️ Configuration Google Cloud
+## 🔧 Installation
 
-### 1. Créer un projet Google Cloud
-
-1. Allez sur [Google Cloud Console](https://console.cloud.google.com/)
-2. Créez un nouveau projet ou sélectionnez un existant
-3. Notez l'ID de votre projet
-
-### 2. Activer les APIs nécessaires
-
-Dans la console Google Cloud :
-1. Allez dans **"APIs & Services" → "Library"**
-2. Recherchez et activez :
-   - **Gmail API**
-   - **Google+ API** (pour l'authentification)
-
-### 3. Configurer l'écran de consentement OAuth
-
-1. Allez dans **"APIs & Services" → "OAuth consent screen"**
-2. Choisissez **"External"** (ou Internal si domaine G Suite)
-3. Remplissez les informations obligatoires :
-   - Nom de l'application : "Agent Gmail"
-   - Email de support utilisateur
-   - Email de contact du développeur
-4. Ajoutez les **scopes** nécessaires :
-   - `../auth/gmail.readonly`
-   - `../auth/gmail.modify`
-   - `../auth/gmail.send` ⭐ **NOUVEAU** pour l'envoi automatique
-   - `../auth/userinfo.email`
-   - `../auth/userinfo.profile`
-
-### 4. Créer les credentials OAuth 2.0
-
-1. Allez dans **"APIs & Services" → "Credentials"**
-2. Cliquez sur **"+ CREATE CREDENTIALS" → "OAuth 2.0 Client IDs"**
-3. Type d'application : **"Web application"**
-4. Nom : "Agent Gmail Client"
-5. **Origines JavaScript autorisées** :
-   ```
-   http://localhost:3000
-   ```
-6. **URIs de redirection autorisées** :
-   ```
-   http://localhost:3000/api/auth/callback/google
-   ```
-7. Cliquez sur **"CREATE"**
-8. **IMPORTANT** : Copiez votre `Client ID` et `Client Secret`
-
-## 🤖 Configuration OpenAI
-
-1. Créez un compte sur [OpenAI Platform](https://platform.openai.com/)
-2. Allez dans [API Keys](https://platform.openai.com/account/api-keys)
-3. Cliquez sur **"Create new secret key"**
-4. Copiez votre clé API (elle commence par `sk-proj-...`)
-
-## ⚙️ Installation et Configuration
-
-### 1. Installer les dépendances
-
+1. Clone the repository:
 ```bash
+git clone https://github.com/flokiyf/Assistant-Gmail.git
+```
+
+2. Install dependencies:
+```bash
+cd Assistant-Gmail
 npm install
+# or
+yarn install
 ```
 
-### 2. Configuration des variables d'environnement
-
-Créez un fichier `.env.local` dans la racine du projet :
-
+3. Set up environment variables:
 ```bash
-# NextAuth Configuration
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=your-super-secret-key-here
-
-# Google OAuth Credentials
-GOOGLE_CLIENT_ID=your-google-client-id-here.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your-google-client-secret-here
-
-# OpenAI Configuration (NOUVEAU)
-OPENAI_API_KEY=sk-proj-your-openai-api-key-here
+cp .env.example .env.local
 ```
+Fill in your environment variables in `.env.local`
 
-**⚠️ Remplacez :**
-- `your-super-secret-key-here` par une clé secrète aléatoire (32+ caractères)
-- `your-google-client-id-here` par votre Client ID Google
-- `your-google-client-secret-here` par votre Client Secret Google
-- `sk-proj-your-openai-api-key-here` par votre clé API OpenAI
-
-### 3. Générer une clé secrète NextAuth
-
-```bash
-# Générer une clé aléatoire
-openssl rand -base64 32
-```
-
-Ou utilisez un générateur en ligne : [generate-secret.vercel.app](https://generate-secret.vercel.app/)
-
-## 🚀 Démarrage
-
+4. Run the development server:
 ```bash
 npm run dev
+# or
+yarn dev
 ```
 
-L'application sera disponible sur [http://localhost:3000](http://localhost:3000)
+5. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-## 📱 Utilisation
+## 📝 Configuration
 
-### 🔐 Connexion
-1. **Ouvrez** votre navigateur sur `http://localhost:3000`
-2. **Cliquez** sur "Se connecter avec Google"
-3. **Sélectionnez** votre compte Gmail
-4. **Autorisez** l'accès à Gmail (lecture + envoi)
-5. **Consultez** vos emails !
+To use the Assistant Gmail, you'll need to:
 
-### 🤖 Assistant IA - Réponses Automatiques
+1. Set up a Google Cloud Project
+2. Enable Gmail API
+3. Configure OAuth 2.0 credentials
+4. Update the environment variables
 
-#### 🎯 **Mode Automatique Complet**
-Utilisez les **mots-clés d'automation** pour un envoi direct sans confirmation :
+## 🤝 Contributing
 
-```
-Réponds automatiquement aux emails de recrutement avec un message professionnel
-```
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for more details.
 
-**Mots-clés d'automation :**
-- `automatiquement`
-- `directement`
-- `sans confirmation`
-- `sans validation`
-- `immédiatement`
+## 🔑 Environment Variables
 
-#### 🔍 **Mode Prévisualisation**
-Sans les mots-clés, vous obtenez une prévisualisation avant envoi :
+Required environment variables:
 
-```
-Réponds aux emails de flokiyf@gmail.com avec un message de confirmation
+```env
+GOOGLE_CLIENT_ID=your_client_id
+GOOGLE_CLIENT_SECRET=your_client_secret
+NEXTAUTH_URL=your_auth_url
+NEXTAUTH_SECRET=your_auth_secret
 ```
 
-#### 📝 **Exemples d'Instructions**
+## 📜 License
 
-**Recrutement :**
-```
-Réponds automatiquement aux emails de recrutement des 7 derniers jours avec un accusé de réception professionnel confirmant mon intérêt
-```
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-**Clients :**
-```
-Réponds automatiquement aux emails contenant "commande" ou "service" avec un message professionnel confirmant la prise en compte
-```
+## 🌟 Support
 
-**Emails spécifiques :**
-```
-Réponds automatiquement aux emails de contact@entreprise.com avec un message de remerciement
-```
+If you find this project helpful, please give it a star ⭐️
 
-**Non lus :**
-```
-Réponds automatiquement aux emails non lus d'aujourd'hui avec un accusé de réception et un délai de réponse détaillée
-```
+## 📫 Contact
 
-#### 🎨 **Templates Prêts à l'Emploi**
+- GitHub: [@flokiyf](https://github.com/flokiyf)
+- Project Link: [https://github.com/flokiyf/Assistant-Gmail](https://github.com/flokiyf/Assistant-Gmail)
 
-L'interface propose des templates organisés par catégorie :
+## 🙏 Acknowledgments
 
-**🔥 Réponses Automatiques (Auto) :**
-- Réponse Recruteurs (Auto)
-- Réponse Non Lus (Auto) 
-- Réponse Clients (Auto)
-
-**📋 Réponses avec Prévisualisation :**
-- Réponse Recruteurs
-- Réponse Non Lus
-- Réponse Clients
-
-**📊 Analyse Intelligente :**
-- Opportunités Emploi
-- Priorité Élevée
-- Résumé Quotidien
-
-#### 🛡️ **Sécurités Intégrées**
-
-- **Limite de sécurité :** Maximum 20 emails automatiques par session
-- **Filtrage intelligent :** Exclut automatiquement les emails `noreply`, newsletters, notifications
-- **Validation IA :** Chaque réponse est analysée et adaptée au contexte
-- **Historique complet :** Logs détaillés de tous les envois
-
-## 🔍 Fonctionnalités Détaillées
-
-### 🔐 Authentification
-- Connexion OAuth sécurisée avec Google
-- Gestion automatique des tokens d'accès
-- Déconnexion sécurisée
-
-### 📧 Gestion des Emails
-- Affichage des emails récents
-- Recherche par mots-clés
-- Tri par date et statut
-- Marquage comme lu
-- Affichage du contenu complet
-
-### 🤖 Intelligence Artificielle
-- **Analyse contextuelle** avec OpenAI GPT-3.5-turbo
-- **Génération personnalisée** de réponses
-- **Adaptation du ton** selon le contexte (professionnel/personnel)
-- **Validation automatique** des instructions
-- **Statistiques détaillées** (taux de réussite, nombre d'envois)
-
-### 🎨 Interface
-- Design moderne avec Tailwind CSS
-- Responsive (mobile/desktop)
-- Loading states avec animations
-- Gestion d'erreurs complète
-- Templates d'instructions intégrés
-
-## 🔧 APIs Disponibles
-
-### GET `/api/gmail/messages`
-Récupère la liste des emails
-
-**Paramètres :**
-- `maxResults` (optionnel) : Nombre d'emails (défaut: 10)
-- `q` (optionnel) : Requête de recherche
-
-### POST `/api/gmail/mark-read`
-Marque un email comme lu
-
-**Body :**
-```json
-{
-  "messageId": "string"
-}
-```
-
-### POST `/api/gmail/instructions` ⭐ **NOUVEAU**
-Analyse les emails selon une instruction
-
-**Body :**
-```json
-{
-  "instruction": "Analyse mes emails de recrutement des 7 derniers jours"
-}
-```
-
-### POST `/api/gmail/reply-instruction` ⭐ **NOUVEAU**
-Génère et envoie des réponses automatiques
-
-**Body :**
-```json
-{
-  "instruction": "Réponds automatiquement aux emails de recrutement avec un message professionnel"
-}
-```
-
-### POST `/api/gmail/send-replies` ⭐ **NOUVEAU**
-Envoie les réponses après prévisualisation
-
-**Body :**
-```json
-{
-  "replies": [
-    {
-      "emailId": "string",
-      "replyBody": "string",
-      "replySubject": "string"
-    }
-  ]
-}
-```
-
-## 🛡️ Sécurité
-
-- ✅ Authentification OAuth 2.0 officielle Google
-- ✅ Tokens stockés de manière sécurisée
-- ✅ Scopes minimaux requis + envoi sécurisé
-- ✅ Validation côté serveur
-- ✅ Pas de stockage de mots de passe
-- ✅ **Clé OpenAI chiffrée** côté serveur
-- ✅ **Limite d'envois automatiques** (20/session)
-- ✅ **Filtrage anti-spam** intégré
-- ✅ **Logs d'audit** pour tous les envois
-
-## 🐛 Dépannage
-
-### Erreur "Invalid redirect URI"
-Vérifiez que l'URI de redirection dans Google Cloud Console est exactement :
-```
-http://localhost:3000/api/auth/callback/google
-```
-
-### Erreur "Access denied"
-1. Vérifiez que les scopes Gmail sont activés (lecture + envoi)
-2. Reconsentez en ajoutant `&prompt=consent` à l'URL de connexion
-
-### Erreur "Client ID not found"
-Vérifiez que vos variables d'environnement sont correctement définies dans `.env.local`
-
-### Erreur "Invalid API key provided" ⭐ **NOUVEAU**
-1. Vérifiez que votre clé OpenAI est correcte dans `.env.local`
-2. Assurez-vous qu'elle commence par `sk-proj-`
-3. Vérifiez que votre compte OpenAI a du crédit
-
-### Emails "undefined" ⭐ **NOUVEAU**
-Ce problème a été corrigé dans la dernière version. Assurez-vous d'avoir :
-1. La dernière version du code
-2. Les bonnes permissions Gmail (envoi activé)
-3. Une clé OpenAI valide
-
-## 📊 Statistiques et Monitoring
-
-L'application fournit des statistiques détaillées :
-
-- **Emails traités** : Nombre total d'emails analysés
-- **Réponses envoyées** : Nombre de réponses automatiques envoyées
-- **Taux de réussite** : Pourcentage d'envois réussis
-- **Détails des envois** : Liste complète avec destinataires et sujets
-- **Gestion des erreurs** : Logs détaillés pour le debug
-
-## 📚 Technologies Utilisées
-
-- **Next.js 14** - Framework React avec App Router
-- **NextAuth.js** - Authentification OAuth
-- **Gmail API** - Accès complet aux emails
-- **OpenAI GPT-3.5-turbo** - Intelligence artificielle
-- **Tailwind CSS** - Styling moderne
-- **TypeScript** - Type safety
-- **Google APIs** - Client JavaScript
-- **React Hooks** - State management
-
-## 🎯 Cas d'Usage
-
-### 👔 **Professionnel**
-- Réponses automatiques aux recruteurs
-- Accusés de réception clients
-- Gestion des demandes de devis
-- Suivi des candidatures
-
-### 📈 **Productivité**
-- Traitement des emails non lus
-- Réponses aux emails urgents
-- Gestion des newsletters
-- Tri automatique par priorité
-
-### 🤝 **Personnel**
-- Réponses polies aux invitations
-- Messages de remerciement
-- Confirmations de rendez-vous
-- Suivi des commandes
-
-## 🤝 Contribution
-
-Les contributions sont les bienvenues ! N'hésitez pas à :
-1. Fork le projet
-2. Créer une branche feature
-3. Commit vos changements
-4. Push vers la branche
-5. Ouvrir une Pull Request
-
-## 📄 Licence
-
-Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
+- Thanks to all contributors who have helped this project grow
+- Special thanks to the TypeScript and Next.js communities
 
 ---
 
-## 🚀 **Nouveautés v2.0**
-
-- ✅ **Réponses automatiques** avec IA
-- ✅ **Templates d'instructions** prêts à l'emploi
-- ✅ **Mode automatique vs prévisualisation**
-- ✅ **Sécurités avancées**
-- ✅ **Statistiques complètes**
-- ✅ **Interface modernisée**
-
-**Transformez votre Gmail en assistant personnel intelligent !** 🤖✨
-
-
-
-
-
-
-Test anvoi de mail 
-
-Instruction: "Réponds automatiquement aux emails de recrutement"
-↓
-🔄 Analyse → Génère → Approuve → Envoie → Affiche résumé
-↓
-🚀 ENVOI AUTOMATIQUE : 3 réponses envoyées automatiquement
+Deployed on [Vercel](https://assistant-gmail.vercel.app) 🚀
