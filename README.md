@@ -97,3 +97,5 @@ If you find this project helpful, please give it a star ⭐️
 ---
 
 Deployed on [Vercel](https://assistant-gmail.vercel.app) 🚀
+
+https://www.linkedin.com/posts/florentin-kassegnin_typescript-gmail-ai-activity-7349998558705532929-a9HC?utm_source=share&utm_medium=member_desktop&rcm=ACoAACpG3_kBMMaqDUeiAkauVBxxGDKfqlTNO-M
